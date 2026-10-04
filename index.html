@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Общежитие: заселение</title>
+<style>
+  :root {
+    --bg: #f1f3f0;
+    --ink: #1c2420;
+    --muted: #5f6b64;
+    --line: #d5dbd6;
+    --card: #ffffff;
+    --accent: #166a5a;
+    --accent-dark: #0f4f43;
+    --free: #166a5a;
+    --part: #a85d00;
+    --full: #8b2a2a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; line-height: 1.5; }
+  header { max-width: 1150px; margin: 0 auto; padding: 28px 20px 6px; }
+  header h1 { margin: 0; font-size: 1.9rem; letter-spacing: -0.01em; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+
+  main { max-width: 1150px; margin: 0 auto; padding: 18px 20px 40px;
+    display: grid; grid-template-columns: 340px 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+  .panel h2 { margin: 0 0 10px; font-size: 1.1rem; }
+  label { display: block; font-weight: 600; font-size: .9rem; margin: 12px 0 4px; }
+  input[type=text], select { width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 6px; font: inherit; background: #fff; color: var(--ink); }
+  .radios { display: flex; gap: 18px; }
+  .radios label { font-weight: 400; margin: 0; display: flex; gap: 6px; align-items: center; }
+  :focus-visible { outline: 3px solid #7fc4b5; outline-offset: 1px; }
+
+  button { font: inherit; cursor: pointer; border-radius: 6px; border: 0; padding: 10px 14px; font-weight: 600; }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; margin-top: 16px; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-secondary { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+  .btn-secondary:hover { background: #eef2ee; }
+  .btn-small { padding: 3px 9px; font-size: .8rem; }
+  .row { display: flex; gap: 8px; }
+  .row input { flex: 1; }
+
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 6px; font-size: .93rem; display: none; }
+  .msg.show { display: block; }
+  .msg.ok { background: #e1f1ec; color: #0f4f43; border: 1px solid #a9d3c8; }
+  .msg.err { background: #f6e3e3; color: #7a2323; border: 1px solid #e0b4b4; }
+  .msg.info { background: #eef2ee; color: var(--ink); border: 1px solid var(--line); }
+
+  .stats { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat b { font-size: 1.5rem; display: block; line-height: 1.1; }
+  .stat span { color: var(--muted); font-size: .85rem; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filters button { background: #fff; border: 1px solid var(--line); color: var(--ink); padding: 6px 12px; font-weight: 500; }
+  .filters button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  .rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+  .room { background: var(--card); border: 1px solid var(--line); border-left-width: 6px; border-radius: 8px; padding: 12px 14px; }
+  .room.free { border-left-color: var(--free); }
+  .room.part { border-left-color: var(--part); }
+  .room.full { border-left-color: var(--full); }
+  .room.hl { box-shadow: 0 0 0 3px #7fc4b5; }
+  .room-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .room-num { font-size: 1.4rem; font-weight: 700; }
+  .room-status { font-size: .82rem; font-weight: 600; }
+  .free .room-status { color: var(--free); }
+  .part .room-status { color: var(--part); }
+  .full .room-status { color: var(--full); }
+  .room-meta { color: var(--muted); font-size: .85rem; margin-bottom: 6px; }
+  .room ul { list-style: none; padding: 0; margin: 0; }
+  .room li { display: flex; justify-content: space-between; align-items: center; gap: 6px;
+    padding: 3px 0; font-size: .92rem; border-top: 1px solid #eef0ee; }
+  .room li.empty { color: var(--muted); font-style: italic; }
+  .empty-state { background: var(--card); border: 1px dashed var(--line); border-radius: 10px;
+    padding: 26px; text-align: center; color: var(--muted); }
+  .footer-actions { margin-top: 22px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Общежитие: заселение</h1>
+  <p>Подберите свободную комнату, заселитесь и найдите свой номер.</p>
+</header>
+
+<main>
+  <div>
+    <section class="panel">
+      <h2>Заселение</h2>
+      <form id="checkinForm" novalidate>
+        <label for="name">Имя и фамилия</label>
+        <input type="text" id="name" maxlength="60" autocomplete="off">
+
+        <label>Пол</label>
+        <div class="radios">
+          <label><input type="radio" name="gender" value="М" checked> Мужской</label>
+          <label><input type="radio" name="gender" value="Ж"> Женский</label>
+        </div>
+
+        <label for="floorPref">Желаемый этаж</label>
+        <select id="floorPref">
+          <option value="">Любой</option>
+          <option value="1">1 этаж</option>
+          <option value="2">2 этаж</option>
+          <option value="3">3 этаж</option>
+          <option value="4">4 этаж</option>
+        </select>
+
+        <label for="roomSelect">Комната</label>
+        <select id="roomSelect"></select>
+
+        <button type="submit" class="btn-primary">Заселиться</button>
+        <button type="button" class="btn-secondary" id="suggestBtn" style="width:100%;margin-top:8px">Подобрать комнату</button>
+        <div id="formMsg" class="msg" role="status" aria-live="polite"></div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Найти мою комнату</h2>
+      <div class="row">
+        <input type="text" id="searchName" placeholder="Имя или фамилия" autocomplete="off">
+        <button class="btn-secondary" id="searchBtn" type="button">Найти</button>
+      </div>
+      <div id="searchMsg" class="msg" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <section>
+    <div class="stats" id="stats"></div>
+    <div class="filters" id="filters"></div>
+    <div id="roomsContainer"></div>
+    <div class="footer-actions">
+      <button class="btn-secondary" id="resetBtn" type="button">Сбросить все данные</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  /* ============ Данные ============ */
+  const STORAGE_KEY = "dorm_residents_v1";
+  const FLOORS = 4;
+  const ROOMS_PER_FLOOR = 6;
+  const CAPACITIES = [2, 2, 3, 3, 4, 4]; // вместимость комнат на этаже по порядку
+
+  // Список комнат: 101..106, 201..206 и т.д.
+  const ROOMS = [];
+  for (let f = 1; f <= FLOORS; f++) {
+    for (let i = 0; i < ROOMS_PER_FLOOR; i++) {
+      ROOMS.push({ number: f * 100 + i + 1, floor: f, capacity: CAPACITIES[i] });
+    }
+  }
+
+  let residents = load();
+  let filter = "all";      // all | free | 1..4
+  let highlighted = null;  // подсвеченная комната
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(residents)); }
+
+  /* ============ Логика и проверки ============ */
+  const normalize = s => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+  const occupants = room => residents.filter(r => r.room === room.number);
+  const freePlaces = room => room.capacity - occupants(room).length;
+  const roomGender = room => { const o = occupants(room); return o.length ? o[0].gender : null; };
+  const findRoom = number => ROOMS.find(r => r.number === Number(number));
+
+  // Возвращает текст ошибки или null, если заселение возможно
+  function validateCheckIn(name, gender, roomNumber) {
+    if (!name.trim()) return "Введите имя и фамилию.";
+    if (name.trim().length < 3) return "Имя слишком короткое.";
+    const existing = residents.find(r => normalize(r.name) === normalize(name));
+    if (existing) return `${existing.name} уже живёт в комнате ${existing.room}. Сначала выселите его.`;
+    const room = findRoom(roomNumber);
+    if (!room) return "Такой комнаты нет.";
+    if (freePlaces(room) <= 0) return `В комнате ${room.number} нет свободных мест.`;
+    const g = roomGender(room);
+    if (g && g !== gender) return `Комната ${room.number} уже занята жильцами другого пола.`;
+    return null;
+  }
+
+  // Алгоритм подбора: сначала добиваем уже начатые комнаты того же пола,
+  // потом берём пустые. Внутри группы: желаемый этаж, затем меньший номер.
+  function suggestRoom(gender, floorPref) {
+    const candidates = ROOMS.filter(room => {
+      if (freePlaces(room) <= 0) return false;
+      const g = roomGender(room);
+      return !g || g === gender;
+    });
+    if (candidates.length === 0) return null;
+
+    const score = room => {
+      const started = roomGender(room) === gender ? 0 : 1;               // 0 = уже начата
+      const floorMiss = floorPref && room.floor !== Number(floorPref) ? 1 : 0;
+      return [floorMiss, started, room.number];
+    };
+    candidates.sort((a, b) => {
+      const sa = score(a), sb = score(b);
+      for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return sa[i] - sb[i];
+      return 0;
+    });
+    return candidates[0];
+  }
+
+  /* ============ Интерфейс ============ */
+  const $ = id => document.getElementById(id);
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  function showMsg(node, text, type) {
+    node.textContent = text;
+    node.className = "msg show " + type;
+  }
+
+  function roomStatus(room) {
+    const free = freePlaces(room);
+    if (free === room.capacity) return ["free", "Свободна"];
+    if (free > 0) return ["part", `Свободно мест: ${free}`];
+    return ["full", "Заполнена"];
+  }
+
+  function renderSelect() {
+    const sel = $("roomSelect");
+    const prev = sel.value;
+    sel.replaceChildren();
+    const auto = el("option", "", "Подобрать автоматически");
+    auto.value = "";
+    sel.appendChild(auto);
+    ROOMS.forEach(room => {
+      const o = el("option", "", `${room.number} (мест: ${freePlaces(room)} из ${room.capacity})`);
+      o.value = room.number;
+      if (freePlaces(room) <= 0) o.disabled = true;
+      sel.appendChild(o);
+    });
+    sel.value = prev;
+  }
+
+  function renderStats() {
+    const total = ROOMS.reduce((s, r) => s + r.capacity, 0);
+    const used = residents.length;
+    const box = $("stats");
+    box.replaceChildren();
+    [["Всего мест", total], ["Занято", used], ["Свободно", total - used]].forEach(([label, val]) => {
+      const d = el("div", "stat");
+      d.appendChild(el("b", "", String(val)));
+      d.appendChild(el("span", "", label));
+      box.appendChild(d);
+    });
+  }
+
+  function renderFilters() {
+    const box = $("filters");
+    box.replaceChildren();
+    const items = [["all", "Все"], ["free", "Со свободными местами"]];
+    for (let f = 1; f <= FLOORS; f++) items.push([String(f), f + " этаж"]);
+    items.forEach(([key, label]) => {
+      const b = el("button", key === filter ? "active" : "", label);
+      b.type = "button";
+      b.onclick = () => { filter = key; renderFilters(); renderRooms(); };
+      box.appendChild(b);
+    });
+  }
+
+  function renderRooms() {
+    const box = $("roomsContainer");
+    const list = ROOMS.filter(room => {
+      if (filter === "all") return true;
+      if (filter === "free") return freePlaces(room) > 0;
+      return room.floor === Number(filter);
+    });
+    if (list.length === 0) {
+      box.replaceChildren(el("div", "empty-state", "Нет комнат по этому фильтру."));
+      return;
+    }
+    const grid = el("div", "rooms");
+    list.forEach(room => {
+      const [cls, status] = roomStatus(room);
+      const card = el("article", `room ${cls}` + (room.number === highlighted ? " hl" : ""));
+      card.id = "room-" + room.number;
+
+      const top = el("div", "room-top");
+      top.appendChild(el("span", "room-num", String(room.number)));
+      top.appendChild(el("span", "room-status", status));
+      card.appendChild(top);
+
+      const g = roomGender(room);
+      const genderText = g === "М" ? "мужская" : g === "Ж" ? "женская" : "пол не определён";
+      card.appendChild(el("div", "room-meta", `${room.floor} этаж · ${room.capacity}-местная · ${genderText}`));
+
+      const ul = el("ul");
+      occupants(room).forEach(r => {
+        const li = el("li");
+        li.appendChild(el("span", "", r.name));
+        const b = el("button", "btn-secondary btn-small", "Выселить");
+        b.type = "button";
+        b.onclick = () => checkOut(r.id);
+        li.appendChild(b);
+        ul.appendChild(li);
+      });
+      for (let i = 0; i < freePlaces(room); i++) ul.appendChild(el("li", "empty", "свободно"));
+      card.appendChild(ul);
+      grid.appendChild(card);
+    });
+    box.replaceChildren(grid);
+  }
+
+  function renderAll() {
+    renderSelect(); renderStats(); renderFilters(); renderRooms();
+  }
+
+  function checkOut(id) {
+    const r = residents.find(x => x.id === id);
+    if (!r) return;
+    if (!confirm(`Выселить ${r.name} из комнаты ${r.room}?`)) return;
+    residents = residents.filter(x => x.id !== id);
+    save();
+    renderAll();
+  }
+
+  function selectedGender() {
+    return document.querySelector('input[name="gender"]:checked').value;
+  }
+
+  /* ============ События ============ */
+  $("suggestBtn").onclick = () => {
+    const room = suggestRoom(selectedGender(), $("floorPref").value);
+    if (!room) {
+      showMsg($("formMsg"), "Свободных комнат для этого пола нет.", "err");
+      return;
+    }
+    $("roomSelect").value = room.number;
+    highlighted = room.number;
+    renderRooms();
+    showMsg($("formMsg"), `Подходит комната ${room.number} (${room.floor} этаж, свободно мест: ${freePlaces(room)}).`, "info");
+  };
+
+  $("checkinForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = $("name").value;
+    const gender = selectedGender();
+    let roomNumber = $("roomSelect").value;
+
+    if (!roomNumber) {
+      const room = suggestRoom(gender, $("floorPref").value);
+      if (!room) { showMsg($("formMsg"), "Свободных комнат для этого пола нет.", "err"); return; }
+      roomNumber = room.number;
+    }
+
+    const error = validateCheckIn(name, gender, roomNumber);
+    if (error) { showMsg($("formMsg"), error, "err"); return; }
+
+    residents.push({
+      id: Date.now() + Math.random(),
+      name: name.trim().replace(/\s+/g, " "),
+      gender,
+      room: Number(roomNumber)
+    });
+    save();
+    highlighted = Number(roomNumber);
+    showMsg($("formMsg"), `${name.trim()}, вы заселены в комнату ${roomNumber}.`, "ok");
+    $("name").value = "";
+    $("roomSelect").value = "";
+    renderAll();
+    const card = $("room-" + roomNumber);
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  function search() {
+    const q = normalize($("searchName").value);
+    if (!q) { showMsg($("searchMsg"), "Введите имя или фамилию.", "err"); return; }
+    const found = residents.filter(r => normalize(r.name).includes(q));
+    if (found.length === 0) { showMsg($("searchMsg"), "Такого жильца нет.", "err"); highlighted = null; renderRooms(); return; }
+    showMsg($("searchMsg"), found.map(r => `${r.name}: комната ${r.room}`).join("\n"), "ok");
+    $("searchMsg").style.whiteSpace = "pre-line";
+    highlighted = found[0].room;
+    filter = "all";
+    renderFilters(); renderRooms();
+    const card = $("room-" + highlighted);
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  $("searchBtn").onclick = search;
+  $("searchName").addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+
+  $("resetBtn").onclick = () => {
+    if (!confirm("Удалить всех жильцов?")) return;
+    residents = []; highlighted = null;
+    save(); renderAll();
+    ["formMsg", "searchMsg"].forEach(id => $(id).className = "msg");
+  };
+
+  renderAll();
+</script>
+</body>
+</html>
